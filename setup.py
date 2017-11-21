@@ -1,0 +1,44 @@
+from setuptools import setup
+
+import re
+from os import path
+
+PACKAGE_NAME = 'pycate'
+HERE = path.abspath(path.dirname(__file__))
+
+# Get the long description from the README file
+with open(path.join(HERE, 'README.rst'), encoding='utf-8') as f:
+    README = f.read()
+
+# Get version number from pycate/const.py
+with open(path.join(HERE, PACKAGE_NAME, 'const.py'), encoding='utf-8') as fp:
+    VERSION = re.search("__version__ = '([^']+)'", fp.read()).group(1)
+
+setup(
+    name=PACKAGE_NAME,
+    version=VERSION,
+
+    description='An API wrapper for CATe',
+    long_description=README,
+    url='https://github.com/ftm-1/py-cate',
+
+    author='ftm',
+    author_email='ftm-1-gh@outlook.com',
+
+    license='MIT',
+
+    classifiers=[
+        'Development Status :: 1 - Planning',
+        'Environment :: Console'
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Natural Language :: English',
+        'Operating System :: OS Independent'
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+        'Topic :: Utilities'
+    ],
+    keywords='cate api imperial college',
+
+    python_requires='~=3.5'
+)
