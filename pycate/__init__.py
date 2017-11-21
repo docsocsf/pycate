@@ -1,6 +1,12 @@
-import pycate.const
+"""
+Py-Cate is a Python library designed to allow programmatic use of CATe, the
+*Continous Assessment Tracking Engine* used by the Department of Computing at
+Imperial College London.
+"""
 
+from .const import __version__
+from .cate import CATe
 
-class CATe(object):
-    def __init__(self):
-        print('Hello, CATe (version {})'.format(pycate.const.__version__))
+import logging
+
+logging.getLogger('pycate').addHandler(logging.NullHandler())
