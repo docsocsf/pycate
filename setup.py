@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 import re
 from os import path
@@ -39,6 +39,8 @@ setup(
         'Topic :: Utilities'
     ],
     keywords='cate api imperial college',
+
+    packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
 
     python_requires='~=3.5'
 )
