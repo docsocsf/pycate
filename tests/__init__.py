@@ -1,1 +1,0 @@
-"""PyCate test suite"""

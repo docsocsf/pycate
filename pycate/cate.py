@@ -2,9 +2,11 @@
 
 import logging
 
+from bs4 import BeautifulSoup
+
 from .const import __version__, CATE_BASE_URL, USER_AGENT_FORMAT
-from .exceptions import AuthException
 from .http import Http
+from .util import get_current_academic_year
 
 
 class CATe(object):
@@ -31,8 +33,9 @@ class CATe(object):
         """
 
         self.__http = Http(USER_AGENT_FORMAT.format(user_agent))
-        self.username = ""
-        self.password = ""
+        self._is_authenticated = False
+        self._username = ""
+        self._password = ""
         self.logger = logging.getLogger('pycate')
 
         self.logger.debug(
@@ -41,6 +44,12 @@ class CATe(object):
                 ua=self.__http.user_agent
             ))
 
+    def is_authenticated(self):
+        """
+        :return: Whether or not the CATe instance is authenticated
+        """
+        return self._is_authenticated
+
     def authenticate(self, username, password):
         """
         Authenticates a user against CATe. If authentication succeeds the
@@ -48,19 +57,71 @@ class CATe(object):
 
         :param username: The username to authenticate with
         :param password: The password to authenticate with
+        :return: True if authentication was successful, False otherwise
         """
-        self.logger.debug('Authenticating...')
+
+        def asterisk_password(pw):
+            return '{}{}{}'.format(pw[0], '*' * (len(pw) - 2), pw[-1])
+
+        self.logger.debug(
+            'Authenticating user {user} (with password: {pw})'
+            .format(user=username, pw=asterisk_password(password))
+        )
 
         r = self.__get(CATE_BASE_URL, username=username, password=password)
 
         if r.status_code == 200:
             # Authorization succeeded
-            self.username = username
-            self.password = password
+            self.logger.debug('Authentication succeeded')
+            self._is_authenticated = True
+            self._username = username
+            self._password = password
+            return True
 
         if r.status_code == 401:
             # Unauthorized
-            raise AuthException("Username/password may be incorrect")
+            self.logger.warning('Authentication failed')
+            self._is_authenticated = False
+            self._username = ''
+            self._password = ''
+            return False
+
+    def get_user_info(self):
+        """
+        Gets user information (name, login, CID, status, department, category,
+        email, and personal tutor) from the CATe homepage
+
+        :return:
+        """
+        self.logger.debug('Getting user info for {}...'.format(self._username))
+
+        url = 'https://cate.doc.ic.ac.uk/personal.cgi?keyp={}:{}'.format(
+            get_current_academic_year()[0],
+            self._username
+        )
+
+        response = self.__get(url)
+        soup = BeautifulSoup(response.text, 'html5lib')
+
+        user_info_table = soup.form.table.tbody.tr.find_all('td')[1].table.tbody
+        uit_rows = user_info_table.find_all('tr')
+
+        user = dict()
+
+        user['name'] = uit_rows[0].find_all('td')[1].text
+        user['login'] = uit_rows[1].find_all('td')[0].b.text
+        user['cid'] = uit_rows[1].find_all('td')[2].b.text
+        user['status'] = uit_rows[2].find_all('td')[0].b.text
+        user['department'] = uit_rows[2].find_all('td')[2].b.text
+        user['category'] = uit_rows[3].find_all('td')[0].b.text
+        user['email'] = uit_rows[4].find_all('td')[0].b.text
+        user['personal_tutor'] = '{x[0]} {x[2]}'.format(
+            x=uit_rows[5].find_all('td')[0].b.contents
+        )
+
+        self.logger.debug('Got user info for {}...'.format(self._username))
+
+        return user
 
     def __get(self, url, username=None, password=None):
         """
@@ -71,7 +132,7 @@ class CATe(object):
         """
         if self.__http:
             if not username and not password:
-                return self.__http.get(url, self.username, self.password)
+                return self.__http.get(url, self._username, self._password)
             else:
                 return self.__http.get(url, username, password)
         else:

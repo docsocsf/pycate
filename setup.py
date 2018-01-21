@@ -42,6 +42,7 @@ setup(
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
 
-    install_requires=['requests'],
+    install_requires=['requests', 'beautifulsoup4'],
+    tests_require=['pytest'],
     python_requires='~=3.5'
 )

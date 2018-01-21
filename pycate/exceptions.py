@@ -1,6 +1,4 @@
-"""
-PyCate exception classes
-"""
+"""PyCate exception classes"""
 
 
 class PyCateException(Exception):
@@ -9,9 +7,3 @@ class PyCateException(Exception):
 
 class ClientException(PyCateException):
     """Exceptions that don't involve interaction with CATe"""
-
-
-class AuthException(PyCateException):
-    """
-    Used when there is an authentication problem (e.g. incorrect credentials)
-    """
