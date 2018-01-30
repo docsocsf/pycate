@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+import re
 
 from bs4 import BeautifulSoup
 
@@ -85,11 +86,13 @@ class CATe(object):
             self._password = ''
             return False
 
-    def get_user_info(self):
+    def get_user_info(self, skip_personal=False, skip_defaults=False):
         """
         Gets user information (name, login, CID, status, department, category,
-        email, and personal tutor) from the CATe homepage
+        email, personal tutor, default class and period) from the CATe homepage
 
+        :param skip_personal: If True, the user info is omitted
+        :param skip_defaults: If True, the default class and period are omitted
         :return:
         """
         self.logger.debug('Getting user info for {}...'.format(self._username))
@@ -99,21 +102,50 @@ class CATe(object):
         response = self.__get(url)
         soup = BeautifulSoup(response.text, 'html5lib')
 
-        user_info_table = soup.form.table.tbody.tr.find_all('td')[1].table.tbody
-        uit_rows = user_info_table.find_all('tr')
-
         user = dict()
 
-        user['name'] = uit_rows[0].find_all('td')[1].text
-        user['login'] = uit_rows[1].find_all('td')[0].b.text
-        user['cid'] = uit_rows[1].find_all('td')[2].b.text
-        user['status'] = uit_rows[2].find_all('td')[0].b.text
-        user['department'] = uit_rows[2].find_all('td')[2].b.text
-        user['category'] = uit_rows[3].find_all('td')[0].b.text
-        user['email'] = uit_rows[4].find_all('td')[0].b.text
-        user['personal_tutor'] = '{x[0]} {x[2]}'.format(
-            x=uit_rows[5].find_all('td')[0].b.contents
-        )
+        if not skip_personal:
+            user_info_table = soup.form.table.tbody.tr.find_all('td')[1].table\
+                .tbody
+            uit_rows = user_info_table.find_all('tr')
+
+            user['name'] = uit_rows[0].find_all('td')[1].text
+            user['login'] = uit_rows[1].find_all('td')[0].b.text
+            user['cid'] = uit_rows[1].find_all('td')[2].b.text
+            user['status'] = uit_rows[2].find_all('td')[0].b.text
+            user['department'] = uit_rows[2].find_all('td')[2].b.text
+            user['category'] = uit_rows[3].find_all('td')[0].b.text
+            user['email'] = uit_rows[4].find_all('td')[0].b.text
+            user['personal_tutor'] = '{x[0]} {x[2]}'.format(
+                x=uit_rows[5].find_all('td')[0].b.contents
+            )
+        else:
+            self.logger.debug('Skipping personal info...')
+
+        if not skip_defaults:
+            timetable_selection_table = soup.form.table.tbody.contents[2].tr\
+                .find_all('table')
+            period_table = timetable_selection_table[2]
+            class_table = timetable_selection_table[3]
+
+            period_inputs = period_table.find_all('input')
+            clazz_inputs = class_table.find_all('input')
+
+            period_selected = None
+            class_selected = None
+
+            for p_input in period_inputs:
+                if p_input.has_attr('checked'):
+                    period_selected = p_input['value']
+
+            for c_input in clazz_inputs:
+                if c_input.has_attr('checked'):
+                    class_selected = c_input['value']
+
+            user['default_period'] = period_selected
+            user['default_class'] = class_selected
+        else:
+            self.logger.debug('Skipping default class/period')
 
         self.logger.debug('Got user info for {}...'.format(self._username))
 
@@ -135,39 +167,19 @@ class CATe(object):
         # If either is None, will need to go to personal page to get defaults
         if period is None or clazz is None:
             self.logger.debug('Period/Clazz is None, finding defaults...')
-            personal_response = self.__get(
-                URLs.personal(get_current_academic_year()[0], self._username)
-            )
-            personal_soup = BeautifulSoup(personal_response.text, 'html5lib')
-            timetable_selection_table = personal_soup.form.table.tbody.contents[
-                2].tr.find_all('table')
-            period_table = timetable_selection_table[2]
-            clazz_table = timetable_selection_table[3]
 
-            period_inputs = period_table.find_all('input')
-            clazz_inputs = clazz_table.find_all('input')
-
-            period_selected = None
-            clazz_selected = None
-
-            for p_input in period_inputs:
-                if p_input.has_attr('checked'):
-                    period_selected = p_input['value']
-
-            for c_input in clazz_inputs:
-                if c_input.has_attr('checked'):
-                    clazz_selected = c_input['value']
+            user_info = self.get_user_info(skip_personal=True)
 
             if period is None:
-                period = period_selected
+                period = user_info['default_period']
                 self.logger.debug('Setting period to: {}'.format(period))
 
             if clazz is None:
-                clazz = clazz_selected
-                self.logger.debug('Setting clazz to:  {}'.format(clazz))
+                clazz = user_info['default_class']
+                self.logger.debug('Setting class to:  {}'.format(clazz))
 
         self.logger.debug('Downloading exercise timetable for {} '
-                          '(year: {}, period: {}, clazz: {})'
+                          '(year: {}, period: {}, class: {})'
                           .format(self._username,
                                   get_current_academic_year()[0],
                                   period, clazz))
@@ -235,6 +247,68 @@ class CATe(object):
 
         # Using start_datetime as a reference, use this to work out the start
         # and end times for each exercise
+
+        # Find rows containing modules
+        self.logger.debug('Finding modules...')
+        modules = list()
+
+        for i, row in enumerate(timetable_table_rows[7:]):
+            row_tds = row.find_all('td')
+            if len(row_tds) >= 2:
+                if ('style' in row_tds[1].attrs) and \
+                        row_tds[1]['style'] == 'border: 2px solid blue':
+                    modules.append({
+                        'name': row_tds[1].text.strip(),
+                        'start_row': 7 + i,
+                        'rowspan': int(row_tds[1]['rowspan'])
+                    })
+
+        self.logger.debug('Found {} modules'.format(len(modules)))
+
+        for module in modules:
+            module['exercises'] = list()
+            module_name = module['name']
+            current_day_offset = 0
+            start_row = module['start_row']
+            end_row = start_row + module['rowspan']
+
+            print('MODULE: {}'.format(module_name))
+
+            for row_index, row in enumerate(
+                    timetable_table_rows[start_row:end_row]):
+                if row_index == 0:
+                    start_cell = 4
+                else:
+                    start_cell = 2
+
+                for td in row.find_all('td')[start_cell:]:
+                    if td.text is not None:
+                        td_colspan = 1
+                        if 'colspan' in td.attrs:
+                            td_colspan = int(td['colspan'])
+
+                        exercise_start = start_datetime + datetime.timedelta(
+                            days=current_day_offset - 1)
+                        exercise_end = exercise_start + datetime.timedelta(
+                            days=td_colspan)
+                        current_day_offset += td_colspan
+                        td_text_without_whitespace = re.sub(r'\s{2,}', ' ',
+                                                            td.text.strip())
+
+                        if len(td_text_without_whitespace) > 0:
+                            print(' >  {} ({} - {})'.format(
+                                td_text_without_whitespace,
+                                exercise_start.strftime('%Y-%m-%d'),
+                                exercise_end.strftime('%Y-%m-%d')
+                            ))
+
+                            module['exercises'].append({
+                                'name': td_text_without_whitespace,
+                                'start': exercise_start.strftime('%Y-%m-%d'),
+                                'end': exercise_end.strftime('%Y-%m-%d')
+                            })
+
+            print('-' * 100)
 
         return start_datetime
 
