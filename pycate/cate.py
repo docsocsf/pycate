@@ -1,12 +1,14 @@
 """Provides the CATe class"""
 
+import datetime
 import logging
 
 from bs4 import BeautifulSoup
 
 from .const import __version__, CATE_BASE_URL, USER_AGENT_FORMAT
 from .http import Http
-from .util import get_current_academic_year
+from .urls import URLs
+from .util import get_current_academic_year, month_search
 
 
 class CATe(object):
@@ -60,12 +62,9 @@ class CATe(object):
         :return: True if authentication was successful, False otherwise
         """
 
-        def asterisk_password(pw):
-            return '{}{}{}'.format(pw[0], '*' * (len(pw) - 2), pw[-1])
-
         self.logger.debug(
-            'Authenticating user {user} (with password: {pw})'
-            .format(user=username, pw=asterisk_password(password))
+            'Authenticating user {user} (with password: {pw})'.format(
+                user=username, pw=('*' * len(password)))
         )
 
         r = self.__get(CATE_BASE_URL, username=username, password=password)
@@ -95,10 +94,7 @@ class CATe(object):
         """
         self.logger.debug('Getting user info for {}...'.format(self._username))
 
-        url = 'https://cate.doc.ic.ac.uk/personal.cgi?keyp={}:{}'.format(
-            get_current_academic_year()[0],
-            self._username
-        )
+        url = URLs.personal(get_current_academic_year()[0], self._username)
 
         response = self.__get(url)
         soup = BeautifulSoup(response.text, 'html5lib')
@@ -122,6 +118,125 @@ class CATe(object):
         self.logger.debug('Got user info for {}...'.format(self._username))
 
         return user
+
+    def get_exercise_timetable(self, period=None, clazz=None):
+        """
+        Gets the exercise timetable for the current user from the CATe exercise
+        timetable
+        :param period: The period of the year to get exercises to, by default
+            uses the current one
+        :param clazz: The class of which the timetable should be returned, by
+            default uses the user's current class.
+        :return:
+        """
+        self.logger.debug('Getting exercise timetable for {}...'
+                          .format(self._username))
+
+        # If either is None, will need to go to personal page to get defaults
+        if period is None or clazz is None:
+            self.logger.debug('Period/Clazz is None, finding defaults...')
+            personal_response = self.__get(
+                URLs.personal(get_current_academic_year()[0], self._username)
+            )
+            personal_soup = BeautifulSoup(personal_response.text, 'html5lib')
+            timetable_selection_table = personal_soup.form.table.tbody.contents[
+                2].tr.find_all('table')
+            period_table = timetable_selection_table[2]
+            clazz_table = timetable_selection_table[3]
+
+            period_inputs = period_table.find_all('input')
+            clazz_inputs = clazz_table.find_all('input')
+
+            period_selected = None
+            clazz_selected = None
+
+            for p_input in period_inputs:
+                if p_input.has_attr('checked'):
+                    period_selected = p_input['value']
+
+            for c_input in clazz_inputs:
+                if c_input.has_attr('checked'):
+                    clazz_selected = c_input['value']
+
+            if period is None:
+                period = period_selected
+                self.logger.debug('Setting period to: {}'.format(period))
+
+            if clazz is None:
+                clazz = clazz_selected
+                self.logger.debug('Setting clazz to:  {}'.format(clazz))
+
+        self.logger.debug('Downloading exercise timetable for {} '
+                          '(year: {}, period: {}, clazz: {})'
+                          .format(self._username,
+                                  get_current_academic_year()[0],
+                                  period, clazz))
+
+        timetable_response = self.__get(URLs.timetable(
+            get_current_academic_year()[0], period, clazz, self._username))
+        timetable_soup = BeautifulSoup(timetable_response.text, 'html5lib')
+
+        self.logger.debug('Timetable data received, parsing...')
+
+        timetable_table_rows = timetable_soup.body.contents[
+            3].tbody.find_all('tr')
+
+        # Begin calculating the first date in period
+        month_row = timetable_table_rows[0]
+        day_row = timetable_table_rows[2]
+
+        month_colspans = list()
+        for month in month_row.find_all('th')[1:]:
+            month_colspans.append({
+                'name': month.text.strip(),
+                'colspan': int(month['colspan'])
+            })
+
+        start_datetime = None
+
+        for i, day in enumerate(day_row.find_all('th')[1:]):
+            day = day.text.strip()
+            if day != '':
+                first_labelled_day = int(day)
+                # find month at first labelled day
+                k = first_labelled_day
+                first_labelled_datetime = None
+                for month in month_colspans:
+                    k -= month['colspan']
+                    if k <= 0:
+                        first_labelled_month = month['name']
+                        first_labelled_month_number = month_search(
+                            first_labelled_month)
+                        # If first labelled month is before september, assume at
+                        # the start of next year
+                        current_year_pair = get_current_academic_year()
+                        if first_labelled_month_number < 9:
+                            first_labelled_year = current_year_pair[1]
+                        else:
+                            first_labelled_year = current_year_pair[0]
+
+                        first_labelled_datetime = datetime.datetime(
+                            day=first_labelled_day,
+                            month=first_labelled_month_number,
+                            year=first_labelled_year)
+
+                        break
+
+                start_datetime = first_labelled_datetime - datetime.timedelta(
+                    days=i)
+
+                self.logger.debug('First labelled date is {}'.format(
+                    first_labelled_datetime.strftime('%Y-%m-%d')))
+
+                break
+
+        self.logger.debug('Period {} begins on {}'
+                          .format(period, start_datetime.strftime('%c')))
+
+        # Using start_datetime as a reference, use this to work out the start
+        # and end times for each exercise
+
+        return start_datetime
 
     def __get(self, url, username=None, password=None):
         """
