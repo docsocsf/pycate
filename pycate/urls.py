@@ -23,3 +23,11 @@ class URLs:
     @classmethod
     def module_notes(cls, key):
         return URLs._makeurl('notes.cgi?key={}'.format(key))
+
+    @classmethod
+    def show_file(cls, key):
+        return URLs._makeurl('showfile.cgi?key={}'.format(key))
+
+    @classmethod
+    def handin(cls, key):
+        return URLs._makeurl('handins.cgi?key={}'.format(key))

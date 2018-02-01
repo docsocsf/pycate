@@ -334,13 +334,42 @@ class CATe(object):
                         days=td_colspan)
                     current_day_offset += td_colspan
 
-                    # Save this info into the module's exercises list
-                    module_info['exercises'].append({
+                    exercise_links = dict()
+
+                    # Find exercise links
+                    for td_link in td.find_all('a'):
+                        if 'href' not in td_link.attrs:
+                            continue
+
+                        td_href = td_link['href']
+                        if 'mailto' in td_href:
+                            exercise_links['mailto'] = td_href
+                            continue
+                        if 'SPECS' in td_href:
+                            spec_key = td_href[17:]
+                            exercise_links['spec'] = URLs.show_file(spec_key)
+                            continue
+                        if 'handins.cgi' in td_href:
+                            handin_key = td_href[16:]
+                            exercise_links['handin'] = URLs.handin(handin_key)
+                            continue
+                        if 'given.cgi' in td_href:
+                            given_key = td_href[17:]
+                            exercise_links['givens'] = URLs.show_file(given_key)
+                            continue
+
+                    exercise_info = {
                         'code': exercise_code,
                         'name': exercise_name,
                         'start': exercise_start.strftime('%Y-%m-%d'),
                         'end': exercise_end.strftime('%Y-%m-%d')
-                    })
+                    }
+
+                    if len(exercise_links) > 0:
+                        exercise_info['links'] = exercise_links
+
+                    # Save this info into the module's exercises list
+                    module_info['exercises'].append(exercise_info)
 
             # Save this module's info into the main module list
             modules.append(module_info)
