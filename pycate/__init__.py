@@ -4,8 +4,7 @@ Py-Cate is a Python library designed to allow programmatic use of CATe, the
 Imperial College London.
 """
 
-from .const import __version__
-from .cate import CATe
+from pycate.const import __version__
 
 import logging
 

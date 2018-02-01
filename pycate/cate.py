@@ -6,10 +6,10 @@ import re
 
 from bs4 import BeautifulSoup
 
-from .const import __version__, CATE_BASE_URL, USER_AGENT_FORMAT
-from .http import Http
-from .urls import URLs
-from .util import get_current_academic_year, month_search
+from pycate.const import __version__, CATE_BASE_URL, USER_AGENT_FORMAT
+from pycate.http import Http
+from pycate.urls import URLs
+from pycate.util import get_current_academic_year, month_search
 
 
 class CATe(object):
@@ -105,7 +105,7 @@ class CATe(object):
         user = dict()
 
         if not skip_personal:
-            user_info_table = soup.form.table.tbody.tr.find_all('td')[1].table\
+            user_info_table = soup.form.table.tbody.tr.find_all('td')[1].table \
                 .tbody
             uit_rows = user_info_table.find_all('tr')
 
@@ -123,7 +123,7 @@ class CATe(object):
             self.logger.debug('Skipping personal info...')
 
         if not skip_defaults:
-            timetable_selection_table = soup.form.table.tbody.contents[2].tr\
+            timetable_selection_table = soup.form.table.tbody.contents[2].tr \
                 .find_all('table')
             period_table = timetable_selection_table[2]
             class_table = timetable_selection_table[3]
@@ -204,35 +204,40 @@ class CATe(object):
                 'colspan': int(month['colspan'])
             })
 
+        # This will be a datetime representing the first date in the selected
+        # period
         start_datetime = None
 
         for i, day in enumerate(day_row.find_all('th')[1:]):
             day = day.text.strip()
             if day != '':
                 first_labelled_day = int(day)
-                # find month at first labelled day
-                k = first_labelled_day
+
+                # Find month at first labelled day
                 first_labelled_datetime = None
+                k = first_labelled_day
                 for month in month_colspans:
                     k -= month['colspan']
-                    if k <= 0:
-                        first_labelled_month = month['name']
-                        first_labelled_month_number = month_search(
-                            first_labelled_month)
-                        # If first labelled month is before september, assume at
-                        # the start of next year
-                        current_year_pair = get_current_academic_year()
-                        if first_labelled_month_number < 9:
-                            first_labelled_year = current_year_pair[1]
-                        else:
-                            first_labelled_year = current_year_pair[0]
 
-                        first_labelled_datetime = datetime.datetime(
-                            day=first_labelled_day,
-                            month=first_labelled_month_number,
-                            year=first_labelled_year)
+                    # If the current month hasn't been found yet keep going
+                    if k > 0:
+                        continue
 
-                        break
+                    first_labelled_month = month_search(month['name'])
+
+                    # Use 1st September as the cut off between academic years
+                    current_year_pair = get_current_academic_year()
+                    if first_labelled_month < 9:
+                        first_labelled_year = current_year_pair[1]
+                    else:
+                        first_labelled_year = current_year_pair[0]
+
+                    first_labelled_datetime = datetime.datetime(
+                        day=first_labelled_day,
+                        month=first_labelled_month,
+                        year=first_labelled_year)
+
+                    break
 
                 start_datetime = first_labelled_datetime - datetime.timedelta(
                     days=i)
@@ -242,75 +247,111 @@ class CATe(object):
 
                 break
 
-        self.logger.debug('Period {} begins on {}'
-                          .format(period, start_datetime.strftime('%c')))
+        self.logger.debug('Period {} begins on {}'.format(
+            period, start_datetime.strftime('%Y-%m-%d')))
 
         # Using start_datetime as a reference, use this to work out the start
         # and end times for each exercise
 
         # Find rows containing modules
         self.logger.debug('Finding modules...')
-        modules = list()
+        module_rows = list()
 
         for i, row in enumerate(timetable_table_rows[7:]):
             row_tds = row.find_all('td')
             if len(row_tds) >= 2:
+                # Check if row contains a module by looking for the blue border
+                # around the module name cell
                 if ('style' in row_tds[1].attrs) and \
                         row_tds[1]['style'] == 'border: 2px solid blue':
-                    modules.append({
+                    module_td = row_tds[1]
+
+                    # Find module notes
+                    module_notes_key = ''
+                    if module_td.a is not None:
+                        module_notes_key = module_td.a['href'].split('=')[-1]
+
+                    module_rows.append({
                         'name': row_tds[1].text.strip(),
                         'start_row': 7 + i,
-                        'rowspan': int(row_tds[1]['rowspan'])
+                        'rowspan': int(row_tds[1]['rowspan']),
+                        'notes_key': module_notes_key
                     })
 
-        self.logger.debug('Found {} modules'.format(len(modules)))
+        # Create a list of modules to be returned
+        modules = list()
 
-        for module in modules:
-            module['exercises'] = list()
-            module_name = module['name']
+        for module in module_rows:
             current_day_offset = 0
             start_row = module['start_row']
             end_row = start_row + module['rowspan']
 
-            print('MODULE: {}'.format(module_name))
+            # Construct object for module information. Number and name are (for
+            # example) '113' and 'Architecture' respectively.
+            module_info = {
+                'number': module['name'].split(' ')[0],
+                'name': ' '.join(module['name'].split(' ')[2:]),
+                'notes_key': module['notes_key'],
+                'exercises': list()
+            }
 
             for row_index, row in enumerate(
                     timetable_table_rows[start_row:end_row]):
+
+                # First row contains the module name element with rowspan so
+                # the exercises start at a later column but the other rows just
+                # contain the exercises
                 if row_index == 0:
                     start_cell = 4
                 else:
                     start_cell = 2
 
                 for td in row.find_all('td')[start_cell:]:
-                    if td.text is not None:
-                        td_colspan = 1
-                        if 'colspan' in td.attrs:
-                            td_colspan = int(td['colspan'])
+                    # Remove large whitespace gaps from text in the cell to
+                    # leave just the text
+                    td_text = re.sub(r'\s{2,}', ' ', td.text.strip())
 
-                        exercise_start = start_datetime + datetime.timedelta(
-                            days=current_day_offset - 1)
-                        exercise_end = exercise_start + datetime.timedelta(
-                            days=td_colspan)
-                        current_day_offset += td_colspan
-                        td_text_without_whitespace = re.sub(r'\s{2,}', ' ',
-                                                            td.text.strip())
+                    # If the cell contains no text it's just empty space and
+                    # doesn't contain an exercise
+                    if len(td_text) == 0:
+                        continue
 
-                        if len(td_text_without_whitespace) > 0:
-                            print(' >  {} ({} - {})'.format(
-                                td_text_without_whitespace,
-                                exercise_start.strftime('%Y-%m-%d'),
-                                exercise_end.strftime('%Y-%m-%d')
-                            ))
+                    # Find the number of columns the cell spans (i.e. the length
+                    # of the exercise)
+                    td_colspan = 1
+                    if 'colspan' in td.attrs:
+                        td_colspan = int(td['colspan'])
 
-                            module['exercises'].append({
-                                'name': td_text_without_whitespace,
-                                'start': exercise_start.strftime('%Y-%m-%d'),
-                                'end': exercise_end.strftime('%Y-%m-%d')
-                            })
+                    # Extract the code (i.e. 1:PMT) and actual exercise
+                    # name
+                    exercise_code = td_text.split(' ')[0]
+                    exercise_name = ' '.join(td_text.split(' ')[1:])
 
-            print('-' * 100)
+                    # Calculate the start and end dates
+                    exercise_start = start_datetime + datetime.timedelta(
+                        days=current_day_offset - 1)
+                    exercise_end = exercise_start + datetime.timedelta(
+                        days=td_colspan)
+                    current_day_offset += td_colspan
 
-        return start_datetime
+                    # Save this info into the module's exercises list
+                    module_info['exercises'].append({
+                        'code': exercise_code,
+                        'name': exercise_name,
+                        'start': exercise_start.strftime('%Y-%m-%d'),
+                        'end': exercise_end.strftime('%Y-%m-%d')
+                    })
+
+            # Save this module's info into the main module list
+            modules.append(module_info)
+
+        exercise_counter = 0
+        for m in modules:
+            exercise_counter += len(m['exercises'])
+        self.logger.debug('Found {} modules, {} exercises'.format(
+            len(modules), exercise_counter))
+
+        return modules
 
     def __get(self, url, username=None, password=None):
         """
