@@ -324,8 +324,12 @@ class CATe(object):
 
                     # Extract the code (i.e. 1:PMT) and actual exercise
                     # name
-                    exercise_code = td_text.split(' ')[0]
-                    exercise_name = ' '.join(td_text.split(' ')[1:])
+                    if td.span is not None:
+                        exercise_code = td.span.text.strip()
+                        exercise_name = td.span['title']
+                    else:
+                        exercise_code = td_text.split(' ')[0]
+                        exercise_name = ' '.join(td_text.split(' ')[1:])
 
                     # Calculate the start and end dates
                     exercise_start = start_datetime + datetime.timedelta(
@@ -354,15 +358,53 @@ class CATe(object):
                             exercise_links['handin'] = URLs.handin(handin_key)
                             continue
                         if 'given.cgi' in td_href:
-                            given_key = td_href[17:]
-                            exercise_links['givens'] = URLs.show_file(given_key)
+                            given_key = td_href[14:]
+                            exercise_links['givens'] = URLs.givens(given_key)
                             continue
+
+                    # Find out unassessed/assessed status
+                    exercise_assessed_status = 'UNKNOWN'
+                    if 'bgcolor' in td.attrs:
+                        td_bgcolor = td['bgcolor']
+                        if td_bgcolor == 'white':
+                            # Unassessed
+                            exercise_assessed_status = 'UA'
+                        elif td_bgcolor == '#cdcdcd':
+                            # Unassessed - submission required
+                            exercise_assessed_status = 'UA-SR'
+                        elif td_bgcolor == '#ccffcc':
+                            # Assessed - individual
+                            exercise_assessed_status = 'A-I'
+                        elif td_bgcolor == '#f0ccf0':
+                            # Assessed - group
+                            exercise_assessed_status = 'A-G'
+
+                    # Find out submission status
+                    exercise_submission_status = 'UNKNOWN'
+                    if 'style' in td.attrs:
+                        td_style = td['style']
+                        if td_style == 'border: 2px solid red':
+                            # Not submitted
+                            exercise_submission_status = 'N-S'
+                        elif td_style == 'border: 5px solid red':
+                            # Not submitted - due soon
+                            exercise_submission_status = 'N-S-DS'
+                        elif td_style == 'border: 2px solid yellow':
+                            # Incomplete submission
+                            exercise_submission_status = 'I'
+                        elif td_style == 'border: 5px solid yellow':
+                            # Incomplete submission - due soon
+                            exercise_submission_status = 'I-DS'
+                    else:
+                        exercise_submission_status = 'OK'
 
                     exercise_info = {
                         'code': exercise_code,
                         'name': exercise_name,
                         'start': exercise_start.strftime('%Y-%m-%d'),
-                        'end': exercise_end.strftime('%Y-%m-%d')
+                        'end': exercise_end.strftime('%Y-%m-%d'),
+                        'assessed_status': exercise_assessed_status,
+                        'submission_status': exercise_submission_status
                     }
 
                     if len(exercise_links) > 0:

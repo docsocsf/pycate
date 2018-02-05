@@ -31,3 +31,7 @@ class URLs:
     @classmethod
     def handin(cls, key):
         return URLs._makeurl('handins.cgi?key={}'.format(key))
+
+    @classmethod
+    def givens(cls, key):
+        return URLs._makeurl('given.cgi?key={}'.format(key))
