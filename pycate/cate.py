@@ -278,11 +278,10 @@ class CATe(object):
                         'notes_key': module_notes_key
                     })
 
-        # Create a list of modules to be returned
-        modules = list()
+        # Create a list of exercises to be returned
+        exercises = list()
 
         for module in module_rows:
-            current_day_offset = 0
             start_row = module['start_row']
             end_row = start_row + module['rowspan']
 
@@ -292,11 +291,11 @@ class CATe(object):
                 'number': module['name'].split(' ')[0],
                 'name': ' '.join(module['name'].split(' ')[2:]),
                 'notes_key': module['notes_key'],
-                'exercises': list()
             }
 
             for row_index, row in enumerate(
                     timetable_table_rows[start_row:end_row]):
+                running_day_offset = 0
 
                 # First row contains the module name element with rowspan so
                 # the exercises start at a later column but the other rows just
@@ -304,9 +303,18 @@ class CATe(object):
                 if row_index == 0:
                     start_cell = 4
                 else:
-                    start_cell = 2
+                    start_cell = 1
 
                 for td in row.find_all('td')[start_cell:]:
+                    # Find the number of columns the cell spans (i.e. the length
+                    # of the exercise)
+                    td_colspan = 1
+                    if 'colspan' in td.attrs:
+                        td_colspan = int(td['colspan'])
+
+                    current_day_offset = running_day_offset
+                    running_day_offset += td_colspan
+
                     # Remove large whitespace gaps from text in the cell to
                     # leave just the text
                     td_text = re.sub(r'\s{2,}', ' ', td.text.strip())
@@ -315,12 +323,6 @@ class CATe(object):
                     # doesn't contain an exercise
                     if len(td_text) == 0:
                         continue
-
-                    # Find the number of columns the cell spans (i.e. the length
-                    # of the exercise)
-                    td_colspan = 1
-                    if 'colspan' in td.attrs:
-                        td_colspan = int(td['colspan'])
 
                     # Extract the code (i.e. 1:PMT) and actual exercise
                     # name
@@ -333,10 +335,9 @@ class CATe(object):
 
                     # Calculate the start and end dates
                     exercise_start = start_datetime + datetime.timedelta(
-                        days=current_day_offset - 1)
+                        days=current_day_offset)
                     exercise_end = exercise_start + datetime.timedelta(
-                        days=td_colspan)
-                    current_day_offset += td_colspan
+                        days=td_colspan - 1)
 
                     exercise_links = dict()
 
@@ -399,6 +400,8 @@ class CATe(object):
                         exercise_submission_status = 'OK'
 
                     exercise_info = {
+                        'module_number': module_info['number'],
+                        'module_name': module_info['name'],
                         'code': exercise_code,
                         'name': exercise_name,
                         'start': exercise_start.strftime('%Y-%m-%d'),
@@ -407,22 +410,23 @@ class CATe(object):
                         'submission_status': exercise_submission_status
                     }
 
+                    self.logger.debug('{}-{}: Start {} End {}'.format(
+                        exercise_info['module_number'],
+                        exercise_info['code'],
+                        exercise_info['start'],
+                        exercise_info['end']
+                    ))
+
                     if len(exercise_links) > 0:
                         exercise_info['links'] = exercise_links
 
                     # Save this info into the module's exercises list
-                    module_info['exercises'].append(exercise_info)
+                    exercises.append(exercise_info)
 
-            # Save this module's info into the main module list
-            modules.append(module_info)
-
-        exercise_counter = 0
-        for m in modules:
-            exercise_counter += len(m['exercises'])
         self.logger.debug('Found {} modules, {} exercises'.format(
-            len(modules), exercise_counter))
+            len(module_rows), len(exercises)))
 
-        return modules
+        return exercises
 
     def __get(self, url, username=None, password=None):
         """
