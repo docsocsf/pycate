@@ -473,9 +473,10 @@ class CATe(object):
             tds = row.find_all('td')
             note_obj['number'] = tds[0].text
             note_obj['title'] = tds[1].text
-            note_obj['loaded'] = tds[3].text
-            note_obj['owner'] = tds[4].text
-            note_obj['hits'] = tds[5].text
+            note_obj['size'] = tds[3].text
+            note_obj['loaded'] = tds[4].text
+            note_obj['owner'] = tds[5].text
+            note_obj['hits'] = tds[6].text
 
             if tds[2].text == "URL*":
                 note_obj['type'] = "URL"
