@@ -219,8 +219,10 @@ class CATe(object):
 
                     module_info = {
                         'name': row_tds[1].text.strip(),
-                        'notes_key': module_notes_key
                     }
+
+                    if module_notes_key:
+                        module_info['notes_key'] = module_notes_key
 
                     if get_module_rows:
                         module_info['start_row'] = 7 + i
@@ -480,10 +482,12 @@ class CATe(object):
 
             if tds[2].text == "URL*":
                 note_obj['type'] = "URL"
-                note_obj['url'] = tds[1].a['title']
+                if tds[1].a:
+                    note_obj['url'] = tds[1].a['title']
             else:
                 note_obj['type'] = tds[2].text
-                note_obj['filekey'] = tds[1].a['href'][17:]
+                if tds[1].a:
+                    note_obj['filekey'] = tds[1].a['href'][17:]
 
             notes.append(note_obj)
 
