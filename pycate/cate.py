@@ -151,19 +151,7 @@ class CATe(object):
 
         return user
 
-    def get_exercise_timetable(self, period=None, clazz=None):
-        """
-        Gets the exercise timetable for the current user from the CATe exercise
-        timetable
-        :param period: The period of the year to get exercises to, by default
-            uses the current one
-        :param clazz: The class of which the timetable should be returned, by
-            default uses the user's current class.
-        :return:
-        """
-        self.logger.debug('Getting exercise timetable for {}...'
-                          .format(self._username))
-
+    def __get_default_period_and_class(self, period, clazz):
         # If either is None, will need to go to personal page to get defaults
         if period is None or clazz is None:
             self.logger.debug('Period/Clazz is None, finding defaults...')
@@ -178,20 +166,92 @@ class CATe(object):
                 clazz = user_info['default_class']
                 self.logger.debug('Setting class to:  {}'.format(clazz))
 
-        self.logger.debug('Downloading exercise timetable for {} '
-                          '(year: {}, period: {}, class: {})'
-                          .format(self._username,
-                                  get_current_academic_year()[0],
-                                  period, clazz))
+        return period, clazz
 
+    def __get_timetable_table_rows(self, period=None, clazz=None):
         timetable_response = self.__get(URLs.timetable(
             get_current_academic_year()[0], period, clazz, self._username))
         timetable_soup = BeautifulSoup(timetable_response.text, 'html5lib')
 
         self.logger.debug('Timetable data received, parsing...')
 
-        timetable_table_rows = timetable_soup.body.contents[
-            3].tbody.find_all('tr')
+        return timetable_soup.body.contents[3].tbody.find_all('tr')
+
+    def get_modules(self, period=None, clazz=None, get_module_rows=False,
+                    timetable_table_rows=None):
+        """
+        Gets a list of modules for the given period/class with their notes keys
+        :param period: The period of the year to get exercises to, by default
+            uses the current one
+        :param clazz: The class of which the timetable should be returned, by
+            default uses the user's current class.
+        :param get_module_rows: If True returns information about the rows
+            occupied by each module
+        :param timetable_table_rows: If not None the function uses this as the
+            source of timetable information
+        :return:
+        """
+
+        period, clazz = self.__get_default_period_and_class(period, clazz)
+
+        if timetable_table_rows is None:
+            period, clazz = self.__get_default_period_and_class(period, clazz)
+            timetable_table_rows = self.__get_timetable_table_rows(period,
+                                                                   clazz)
+
+        # Find rows containing modules
+        self.logger.debug('Finding modules...')
+        module_rows = list()
+
+        for i, row in enumerate(timetable_table_rows[7:]):
+            row_tds = row.find_all('td')
+            if len(row_tds) >= 2:
+                # Check if row contains a module by looking for the blue border
+                # around the module name cell
+                if ('style' in row_tds[1].attrs) and \
+                        row_tds[1]['style'] == 'border: 2px solid blue':
+                    module_td = row_tds[1]
+
+                    # Find module notes
+                    module_notes_key = ''
+                    if module_td.a is not None:
+                        module_notes_key = module_td.a['href'].split('=')[-1]
+
+                    module_info = {
+                        'name': row_tds[1].text.strip(),
+                        'notes_key': module_notes_key
+                    }
+
+                    if get_module_rows:
+                        module_info['start_row'] = 7 + i
+                        module_info['rowspan'] = int(row_tds[1]['rowspan'])
+
+                    module_rows.append(module_info)
+
+        return module_rows
+
+    def get_exercise_timetable(self, period=None, clazz=None):
+        """
+        Gets the exercise timetable for the current user from the CATe exercise
+        timetable
+        :param period: The period of the year to get exercises to, by default
+            uses the current one
+        :param clazz: The class of which the timetable should be returned, by
+            default uses the user's current class.
+        :return:
+        """
+        self.logger.debug('Getting exercise timetable for {}...'
+                          .format(self._username))
+
+        period, clazz = self.__get_default_period_and_class(period, clazz)
+
+        self.logger.debug('Downloading exercise timetable for {} '
+                          '(year: {}, period: {}, class: {})'
+                          .format(self._username,
+                                  get_current_academic_year()[0],
+                                  period, clazz))
+
+        timetable_table_rows = self.__get_timetable_table_rows(period, clazz)
 
         # Begin calculating the first date in period
         month_row = timetable_table_rows[0]
@@ -253,30 +313,7 @@ class CATe(object):
         # Using start_datetime as a reference, use this to work out the start
         # and end times for each exercise
 
-        # Find rows containing modules
-        self.logger.debug('Finding modules...')
-        module_rows = list()
-
-        for i, row in enumerate(timetable_table_rows[7:]):
-            row_tds = row.find_all('td')
-            if len(row_tds) >= 2:
-                # Check if row contains a module by looking for the blue border
-                # around the module name cell
-                if ('style' in row_tds[1].attrs) and \
-                        row_tds[1]['style'] == 'border: 2px solid blue':
-                    module_td = row_tds[1]
-
-                    # Find module notes
-                    module_notes_key = ''
-                    if module_td.a is not None:
-                        module_notes_key = module_td.a['href'].split('=')[-1]
-
-                    module_rows.append({
-                        'name': row_tds[1].text.strip(),
-                        'start_row': 7 + i,
-                        'rowspan': int(row_tds[1]['rowspan']),
-                        'notes_key': module_notes_key
-                    })
+        module_rows = self.get_modules(period, clazz, get_module_rows=True, timetable_table_rows=timetable_table_rows)
 
         # Create a list of exercises to be returned
         exercises = list()
@@ -409,13 +446,6 @@ class CATe(object):
                         'assessed_status': exercise_assessed_status,
                         'submission_status': exercise_submission_status
                     }
-
-                    self.logger.debug('{}-{}: Start {} End {}'.format(
-                        exercise_info['module_number'],
-                        exercise_info['code'],
-                        exercise_info['start'],
-                        exercise_info['end']
-                    ))
 
                     if len(exercise_links) > 0:
                         exercise_info['links'] = exercise_links
