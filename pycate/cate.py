@@ -329,7 +329,6 @@ class CATe(object):
             module_info = {
                 'number': module['name'].split(' ')[0],
                 'name': ' '.join(module['name'].split(' ')[2:]),
-                'notes_key': module['notes_key'],
             }
 
             for row_index, row in enumerate(
