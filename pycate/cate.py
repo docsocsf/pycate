@@ -169,13 +169,13 @@ class CATe(object):
         return period, clazz
 
     def __get_timetable_table_rows(self, period=None, clazz=None):
-        timetable_response = self.__get(URLs.timetable(
+        response = self.__get(URLs.timetable(
             get_current_academic_year()[0], period, clazz, self._username))
-        timetable_soup = BeautifulSoup(timetable_response.text, 'html5lib')
+        soup = BeautifulSoup(response.text, 'html5lib')
 
         self.logger.debug('Timetable data received, parsing...')
 
-        return timetable_soup.body.contents[3].tbody.find_all('tr')
+        return soup.body.contents[3].tbody.find_all('tr')
 
     def get_modules(self, period=None, clazz=None, get_module_rows=False,
                     timetable_table_rows=None):
@@ -457,6 +457,36 @@ class CATe(object):
             len(module_rows), len(exercises)))
 
         return exercises
+
+    def get_notes(self, notes_key):
+        """
+        Gets the notes associated with the given notes key
+        :param notes_key: Notes key to query from
+        :return: A list containing dictionaries with note info in
+        """
+        response = self.__get(URLs.module_notes(notes_key))
+        soup = BeautifulSoup(response.text, 'html5lib')
+        note_rows = soup.form.tbody.tbody.find_all('tr')[1:-1]
+        notes = list()
+        for row in note_rows:
+            note_obj = dict()
+            tds = row.find_all('td')
+            note_obj['number'] = tds[0].text
+            note_obj['title'] = tds[1].text
+            note_obj['loaded'] = tds[3].text
+            note_obj['owner'] = tds[4].text
+            note_obj['hits'] = tds[5].text
+
+            if tds[2].text == "URL*":
+                note_obj['type'] = "URL"
+                note_obj['url'] = tds[1].a['title']
+            else:
+                note_obj['type'] = tds[2].text
+                note_obj['filekey'] = tds[1].a['href'][17:]
+
+            notes.append(note_obj)
+
+        return notes
 
     def __get(self, url, username=None, password=None):
         """
