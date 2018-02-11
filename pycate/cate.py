@@ -378,6 +378,7 @@ class CATe(object):
                         days=td_colspan - 1)
 
                     exercise_links = dict()
+                    spec_key = None
 
                     # Find exercise links
                     for td_link in td.find_all('a'):
@@ -450,6 +451,9 @@ class CATe(object):
 
                     if len(exercise_links) > 0:
                         exercise_info['links'] = exercise_links
+
+                    if spec_key is not None:
+                        exercise_info['spec_key'] = spec_key
 
                     # Save this info into the module's exercises list
                     exercises.append(exercise_info)
