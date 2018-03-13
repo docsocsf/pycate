@@ -14,25 +14,17 @@ from pycate.util import get_current_academic_year, month_search
 
 class CATe(object):
     """
-    The CATe class provides access to the data on CATe.
-
-    Instances of this class are the way to interact with CATe. The way to
-    obtain an instance of this class is:
-
-    .. code-block:: python
-
-       import pycate
-
-       cate = pycate.CATe('<username> doing some testing')
+    The CATe class provides access to the data on CATe. Instances of
+    this class are the way to interact with CATe
     """
 
     def __init__(self, user_agent):
         """
         Initialize a CATe Instance
 
-        :param user_agent: A helpful string to identify your application in
-            its requests to CATe. Common strings include the name of the
-            application and some way to identify you (e.g. DoC username)
+        :param user_agent: A helpful string to identify your application
+        in its requests to CATe. Common strings include the name of the
+        application and some way to identify you (e.g. DoC username)
         """
 
         self.__http = Http(USER_AGENT_FORMAT.format(user_agent))
@@ -43,9 +35,7 @@ class CATe(object):
 
         self.logger.debug(
             "Initialised PyCate v{v} with user agent `{ua}`".format(
-                v=__version__,
-                ua=self.__http.user_agent
-            ))
+                v=__version__, ua=self.__http.user_agent))
 
     def is_authenticated(self):
         """
@@ -55,8 +45,8 @@ class CATe(object):
 
     def authenticate(self, username, password):
         """
-        Authenticates a user against CATe. If authentication succeeds the
-        credentials are saved in the CATe instance for future uses.
+        Authenticates a user against CATe. If authentication succeeds
+        the credentials are saved in the CATe instance for future uses.
 
         :param username: The username to authenticate with
         :param password: The password to authenticate with
@@ -88,11 +78,13 @@ class CATe(object):
 
     def get_user_info(self, skip_personal=False, skip_defaults=False):
         """
-        Gets user information (name, login, CID, status, department, category,
-        email, personal tutor, default class and period) from the CATe homepage
+        Gets user information (name, login, CID, status, department,
+        category, email, personal tutor, default class and period) from
+        the CATe homepage
 
         :param skip_personal: If True, the user info is omitted
-        :param skip_defaults: If True, the default class and period are omitted
+        :param skip_defaults: If True, the default class and period are
+        omitted
         :return:
         """
         self.logger.debug('Getting user info for {}...'.format(self._username))
@@ -105,8 +97,8 @@ class CATe(object):
         user = dict()
 
         if not skip_personal:
-            user_info_table = soup.form.table.tbody.tr.find_all('td')[1].table \
-                .tbody
+            user_info_table = soup.form.table.tbody.tr.find_all('td')[
+                1].table.tbody
             uit_rows = user_info_table.find_all('tr')
 
             user['name'] = uit_rows[0].find_all('td')[1].text
@@ -117,14 +109,13 @@ class CATe(object):
             user['category'] = uit_rows[3].find_all('td')[0].b.text
             user['email'] = uit_rows[4].find_all('td')[0].b.text
             user['personal_tutor'] = '{x[0]} {x[2]}'.format(
-                x=uit_rows[5].find_all('td')[0].b.contents
-            )
+                x=uit_rows[5].find_all('td')[0].b.contents)
         else:
             self.logger.debug('Skipping personal info...')
 
         if not skip_defaults:
-            timetable_selection_table = soup.form.table.tbody.contents[2].tr \
-                .find_all('table')
+            timetable_selection_table = \
+                soup.form.table.tbody.contents[2].tr.find_all('table')
             period_table = timetable_selection_table[2]
             class_table = timetable_selection_table[3]
 
@@ -152,7 +143,8 @@ class CATe(object):
         return user
 
     def __get_default_period_and_class(self, period, clazz):
-        # If either is None, will need to go to personal page to get defaults
+        # If either is None, will need to go to personal page to get
+        # the default values
         if period is None or clazz is None:
             self.logger.debug('Period/Clazz is None, finding defaults...')
 
@@ -180,15 +172,16 @@ class CATe(object):
     def get_modules(self, period=None, clazz=None, get_module_rows=False,
                     timetable_table_rows=None):
         """
-        Gets a list of modules for the given period/class with their notes keys
-        :param period: The period of the year to get exercises to, by default
-            uses the current one
-        :param clazz: The class of which the timetable should be returned, by
-            default uses the user's current class.
-        :param get_module_rows: If True returns information about the rows
-            occupied by each module
-        :param timetable_table_rows: If not None the function uses this as the
-            source of timetable information
+        Gets a list of modules for the given period/class with their
+        notes keys
+        :param period: The period of the year to get exercises to, by
+        default uses the current one
+        :param clazz: The class of which the timetable should be
+        returned, by default uses the user's current class.
+        :param get_module_rows: If True returns information about the
+        rows occupied by each module
+        :param timetable_table_rows: If not None the function uses this
+        as the source of timetable information
         :return:
         """
 
@@ -206,8 +199,8 @@ class CATe(object):
         for i, row in enumerate(timetable_table_rows[7:]):
             row_tds = row.find_all('td')
             if len(row_tds) >= 2:
-                # Check if row contains a module by looking for the blue border
-                # around the module name cell
+                # Check if row contains a module by looking for the
+                # blue border around the module name cell
                 if ('style' in row_tds[1].attrs) and \
                         row_tds[1]['style'] == 'border: 2px solid blue':
                     module_td = row_tds[1]
@@ -234,12 +227,12 @@ class CATe(object):
 
     def get_exercise_timetable(self, period=None, clazz=None):
         """
-        Gets the exercise timetable for the current user from the CATe exercise
-        timetable
-        :param period: The period of the year to get exercises to, by default
-            uses the current one
-        :param clazz: The class of which the timetable should be returned, by
-            default uses the user's current class.
+        Gets the exercise timetable for the current user from the CATe
+        exercise timetable
+        :param period: The period of the year to get exercises to, by
+        default uses the current one
+        :param clazz: The class of which the timetable should be
+        returned, by default uses the user's current class.
         :return:
         """
         self.logger.debug('Getting exercise timetable for {}...'
@@ -266,8 +259,8 @@ class CATe(object):
                 'colspan': int(month['colspan'])
             })
 
-        # This will be a datetime representing the first date in the selected
-        # period
+        # This will be a datetime representing the first date in the
+        # selected period
         start_datetime = None
 
         for i, day in enumerate(day_row.find_all('th')[1:]):
@@ -281,13 +274,15 @@ class CATe(object):
                 for month in month_colspans:
                     k -= month['colspan']
 
-                    # If the current month hasn't been found yet keep going
+                    # If the current month hasn't been found yet keep
+                    # going
                     if k > 0:
                         continue
 
                     first_labelled_month = month_search(month['name'])
 
-                    # Use 1st September as the cut off between academic years
+                    # Use 1st September as the cut off between academic
+                    # years
                     current_year_pair = get_current_academic_year()
                     if first_labelled_month < 9:
                         first_labelled_year = current_year_pair[1]
@@ -315,7 +310,9 @@ class CATe(object):
         # Using start_datetime as a reference, use this to work out the start
         # and end times for each exercise
 
-        module_rows = self.get_modules(period, clazz, get_module_rows=True, timetable_table_rows=timetable_table_rows)
+        module_rows = self.get_modules(period, clazz, get_module_rows=True,
+                                       timetable_table_rows=
+                                       timetable_table_rows)
 
         # Create a list of exercises to be returned
         exercises = list()
@@ -324,8 +321,8 @@ class CATe(object):
             start_row = module['start_row']
             end_row = start_row + module['rowspan']
 
-            # Construct object for module information. Number and name are (for
-            # example) '113' and 'Architecture' respectively.
+            # Construct object for module information. Number and name
+            # are (for example) '113' and 'Architecture' respectively.
             module_info = {
                 'number': module['name'].split(' ')[0],
                 'name': ' '.join(module['name'].split(' ')[2:]),
@@ -335,17 +332,17 @@ class CATe(object):
                     timetable_table_rows[start_row:end_row]):
                 running_day_offset = 0
 
-                # First row contains the module name element with rowspan so
-                # the exercises start at a later column but the other rows just
-                # contain the exercises
+                # First row contains the module name element with
+                # rowspan so the exercises start at a later column but
+                # the other rows just contain the exercises
                 if row_index == 0:
                     start_cell = 4
                 else:
                     start_cell = 1
 
                 for td in row.find_all('td')[start_cell:]:
-                    # Find the number of columns the cell spans (i.e. the length
-                    # of the exercise)
+                    # Find the number of columns the cell spans
+                    # (i.e. the length of the exercise)
                     td_colspan = 1
                     if 'colspan' in td.attrs:
                         td_colspan = int(td['colspan'])
@@ -353,12 +350,12 @@ class CATe(object):
                     current_day_offset = running_day_offset
                     running_day_offset += td_colspan
 
-                    # Remove large whitespace gaps from text in the cell to
-                    # leave just the text
+                    # Remove large whitespace gaps from text in the cell
+                    # to leave just the text
                     td_text = re.sub(r'\s{2,}', ' ', td.text.strip())
 
-                    # If the cell contains no text it's just empty space and
-                    # doesn't contain an exercise
+                    # If the cell contains no text it's just empty space
+                    # and doesn't contain an exercise
                     if len(td_text) == 0:
                         continue
 
@@ -498,14 +495,15 @@ class CATe(object):
 
     def __get(self, url, username=None, password=None):
         """
-        Internal method which checks if the CATe instance has an Http instance
-        then calls the get method
+        Internal method which checks if the CATe instance has an Http
+        instance then calls the get method
         :param url: The URL to perform a GET request to
         :return: The results of the GET request or None if no instance
         """
         if self.__http:
             if not username and not password:
-                return self.__http.get(url, self._username, self._password)
+                return self.__http.get(url, self._username,
+                                       self._password)
             else:
                 return self.__http.get(url, username, password)
         else:
