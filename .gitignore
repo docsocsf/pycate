@@ -10,3 +10,6 @@ __pycache__/
 
 # PyCharm
 .idea
+
+# Testing
+.tox
