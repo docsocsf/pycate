@@ -4,7 +4,7 @@ import pytest
 
 @pytest.fixture
 def cate():
-    from pycate import CATe
+    from pycate.cate import CATe
     cate = CATe('tests')
     cate.__http = None
     return cate

@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 from pycate.const import __version__, CATE_BASE_URL, USER_AGENT_FORMAT
 from pycate.http import Http
+from pycate.models import Exercise
 from pycate.urls import URLs
 from pycate.util import get_current_academic_year, month_search
 
@@ -435,25 +436,20 @@ class CATe(object):
                     else:
                         exercise_submission_status = 'OK'
 
-                    exercise_info = {
-                        'module_number': module_info['number'],
-                        'module_name': module_info['name'],
-                        'code': exercise_code,
-                        'name': exercise_name,
-                        'start': exercise_start.strftime('%Y-%m-%d'),
-                        'end': exercise_end.strftime('%Y-%m-%d'),
-                        'assessed_status': exercise_assessed_status,
-                        'submission_status': exercise_submission_status
-                    }
+                    exercise = Exercise(
+                        module_info['number'],
+                        module_info['name'],
+                        exercise_code,
+                        exercise_name,
+                        exercise_start.strftime('%Y-%m-%d'),
+                        exercise_end.strftime('%Y-%m-%d'),
+                        exercise_assessed_status,
+                        exercise_submission_status,
+                        exercise_links,
+                        spec_key
+                    )
 
-                    if len(exercise_links) > 0:
-                        exercise_info['links'] = exercise_links
-
-                    if spec_key is not None:
-                        exercise_info['spec_key'] = spec_key
-
-                    # Save this info into the module's exercises list
-                    exercises.append(exercise_info)
+                    exercises.append(exercise)
 
         self.logger.debug('Found {} modules, {} exercises'.format(
             len(module_rows), len(exercises)))
