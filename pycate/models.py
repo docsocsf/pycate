@@ -24,6 +24,57 @@ class SubmissionStatus(Enum):
     INCOMPLETE_SUBMISSION_DUE_SOON = 'I-S-DS'
 
 
+class UserInfo:
+    def __init__(
+            self, name: str, login: str, cid: str, status: str,
+            department: str, category: str, email: str, personal_tutor: str):
+        self.__name = name
+        self.__login = login
+        self.__cid = cid
+        self.__status = status
+        self.__department = department
+        self.__category = category
+        self.__email = email
+        self.__personal_tutor = personal_tutor
+
+    def __str__(self):
+        return 'UserInfo{{{}}}'.format(
+            self.__login
+        )
+
+    @property
+    def name(self) -> str:
+        return self.__name
+
+    @property
+    def login(self) -> str:
+        return self.__login
+
+    @property
+    def cid(self) -> str:
+        return self.__cid
+
+    @property
+    def status(self) -> str:
+        return self.__status
+
+    @property
+    def department(self) -> str:
+        return self.__department
+
+    @property
+    def category(self) -> str:
+        return self.__category
+
+    @property
+    def email(self) -> str:
+        return self.__email
+
+    @property
+    def personal_tutor(self) -> str:
+        return self.__personal_tutor
+
+
 class Exercise:
     def __init__(
             self, module_number: str, module_name: str, code: str, name: str,

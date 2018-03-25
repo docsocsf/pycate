@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 from pycate.const import __version__, CATE_BASE_URL, USER_AGENT_FORMAT
 from pycate.http import Http
-from pycate.models import Exercise, AssessedStatus, SubmissionStatus
+from pycate.models import UserInfo, Exercise, AssessedStatus, SubmissionStatus
 from pycate.urls import URLs
 from pycate.util import get_current_academic_year, month_search
 
@@ -19,7 +19,7 @@ class CATe(object):
     this class are the way to interact with CATe
     """
 
-    def __init__(self, user_agent):
+    def __init__(self, user_agent, http=None):
         """
         Initialize a CATe Instance
 
@@ -28,7 +28,11 @@ class CATe(object):
         application and some way to identify you (e.g. DoC username)
         """
 
-        self.__http = Http(USER_AGENT_FORMAT.format(user_agent))
+        if http is None:
+            self.__http = Http(USER_AGENT_FORMAT.format(user_agent))
+        else:
+            self.__http = http
+
         self._is_authenticated = False
         self._username = ""
         self._password = ""
@@ -77,16 +81,12 @@ class CATe(object):
             self._password = ''
             return False
 
-    def get_user_info(self, skip_personal=False, skip_defaults=False):
+    def get_user_info(self) -> UserInfo:
         """
         Gets user information (name, login, CID, status, department,
-        category, email, personal tutor, default class and period) from
-        the CATe homepage
+        category, email, and personal tutor) from the CATe homepage
 
-        :param skip_personal: If True, the user info is omitted
-        :param skip_defaults: If True, the default class and period are
-        omitted
-        :return:
+        :return: A UserInfo object
         """
         self.logger.debug('Getting user info for {}...'.format(self._username))
 
@@ -95,69 +95,62 @@ class CATe(object):
         response = self.__get(url)
         soup = BeautifulSoup(response.text, 'html5lib')
 
-        user = dict()
+        user_info_table = soup.form.table.tbody.tr.find_all('td')[
+            1].table.tbody
+        uit_rows = user_info_table.find_all('tr')
 
-        if not skip_personal:
-            user_info_table = soup.form.table.tbody.tr.find_all('td')[
-                1].table.tbody
-            uit_rows = user_info_table.find_all('tr')
+        return UserInfo(
+            uit_rows[0].find_all('td')[1].text,
+            uit_rows[1].find_all('td')[0].b.text,
+            uit_rows[1].find_all('td')[2].b.text,
+            uit_rows[2].find_all('td')[0].b.text,
+            uit_rows[2].find_all('td')[2].b.text,
+            uit_rows[3].find_all('td')[0].b.text,
+            uit_rows[4].find_all('td')[0].b.text,
+            '{x[0]} {x[2]}'.format(x=uit_rows[5].find_all('td')[0].b.contents)
+        )
 
-            user['name'] = uit_rows[0].find_all('td')[1].text
-            user['login'] = uit_rows[1].find_all('td')[0].b.text
-            user['cid'] = uit_rows[1].find_all('td')[2].b.text
-            user['status'] = uit_rows[2].find_all('td')[0].b.text
-            user['department'] = uit_rows[2].find_all('td')[2].b.text
-            user['category'] = uit_rows[3].find_all('td')[0].b.text
-            user['email'] = uit_rows[4].find_all('td')[0].b.text
-            user['personal_tutor'] = '{x[0]} {x[2]}'.format(
-                x=uit_rows[5].find_all('td')[0].b.contents)
-        else:
-            self.logger.debug('Skipping personal info...')
+    def get_default_period_and_class(self, period=None, clazz=None):
+        """
+        Gets the default period and class for the current user. If both
+        period and clazz are specified then they are just returned and
+        CATe is not queried
 
-        if not skip_defaults:
-            timetable_selection_table = \
-                soup.form.table.tbody.contents[2].tr.find_all('table')
-            period_table = timetable_selection_table[2]
-            class_table = timetable_selection_table[3]
+        :param period: Specify a period to override the default one and
+        skip finding it
+        :param clazz: Specify a class to override the default one and
+        skip finding it
+        :return: A tuple containing the default period and class
+        """
+        self.logger.debug('Getting default period and class for {}...'.format(
+            self._username))
 
-            period_inputs = period_table.find_all('input')
-            clazz_inputs = class_table.find_all('input')
+        if period is not None and clazz is not None:
+            return period, clazz
 
-            period_selected = None
-            class_selected = None
+        url = URLs.personal(get_current_academic_year()[0], self._username)
 
+        response = self.__get(url)
+        soup = BeautifulSoup(response.text, 'html5lib')
+        timetable_selection_table = \
+            soup.form.table.tbody.contents[2].tr.find_all('table')
+        period_table = timetable_selection_table[2]
+        class_table = timetable_selection_table[3]
+
+        period_inputs = period_table.find_all('input')
+        class_inputs = class_table.find_all('input')
+
+        if period is None:
             for p_input in period_inputs:
                 if p_input.has_attr('checked'):
-                    period_selected = p_input['value']
+                    period = p_input['value']
+                    break
 
-            for c_input in clazz_inputs:
+        if clazz is None:
+            for c_input in class_inputs:
                 if c_input.has_attr('checked'):
-                    class_selected = c_input['value']
-
-            user['default_period'] = period_selected
-            user['default_class'] = class_selected
-        else:
-            self.logger.debug('Skipping default class/period')
-
-        self.logger.debug('Got user info for {}...'.format(self._username))
-
-        return user
-
-    def __get_default_period_and_class(self, period, clazz):
-        # If either is None, will need to go to personal page to get
-        # the default values
-        if period is None or clazz is None:
-            self.logger.debug('Period/Clazz is None, finding defaults...')
-
-            user_info = self.get_user_info(skip_personal=True)
-
-            if period is None:
-                period = user_info['default_period']
-                self.logger.debug('Setting period to: {}'.format(period))
-
-            if clazz is None:
-                clazz = user_info['default_class']
-                self.logger.debug('Setting class to:  {}'.format(clazz))
+                    clazz = c_input['value']
+                    break
 
         return period, clazz
 
@@ -186,10 +179,9 @@ class CATe(object):
         :return:
         """
 
-        period, clazz = self.__get_default_period_and_class(period, clazz)
+        period, clazz = self.get_default_period_and_class(period, clazz)
 
         if timetable_table_rows is None:
-            period, clazz = self.__get_default_period_and_class(period, clazz)
             timetable_table_rows = self.__get_timetable_table_rows(period,
                                                                    clazz)
 
@@ -202,7 +194,7 @@ class CATe(object):
             if len(row_tds) >= 2:
                 # Check if row contains a module by looking for the
                 # blue border around the module name cell
-                if ('style' in row_tds[1].attrs) and \
+                if 'style' in row_tds[1].attrs and \
                         row_tds[1]['style'] == 'border: 2px solid blue':
                     module_td = row_tds[1]
 
@@ -239,7 +231,7 @@ class CATe(object):
         self.logger.debug('Getting exercise timetable for {}...'
                           .format(self._username))
 
-        period, clazz = self.__get_default_period_and_class(period, clazz)
+        period, clazz = self.get_default_period_and_class(period, clazz)
 
         self.logger.debug('Downloading exercise timetable for {} '
                           '(year: {}, period: {}, class: {})'

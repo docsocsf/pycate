@@ -3,7 +3,7 @@ import requests
 from pycate.exceptions import ClientException
 
 
-class Http(object):
+class Http:
     def __init__(self, user_agent):
         if not user_agent:
             raise ClientException("User agent error")
