@@ -1,14 +1,13 @@
-"""PyCate test suite"""
 import pytest
 
 
-@pytest.fixture
-def cate():
-    from pycate.cate import CATe
-    cate = CATe('tests')
-    cate.__http = None
-    return cate
+class TestCate:
+    @pytest.fixture(name="cate")
+    def create_dummy_cate(self):
+        from pycate.cate import CATe
+        cate = CATe('tests')
+        cate.__http = None
+        return cate
 
-
-def test_success(cate):
-    assert(cate is not None)
+    def test_success(self, cate):
+        assert cate is not None

@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 from pycate.const import __version__, CATE_BASE_URL, USER_AGENT_FORMAT
 from pycate.http import Http
-from pycate.models import Exercise
+from pycate.models import Exercise, AssessedStatus, SubmissionStatus
 from pycate.urls import URLs
 from pycate.util import get_current_academic_year, month_search
 
@@ -311,9 +311,9 @@ class CATe(object):
         # Using start_datetime as a reference, use this to work out the start
         # and end times for each exercise
 
-        module_rows = self.get_modules(period, clazz, get_module_rows=True,
-                                       timetable_table_rows=
-                                       timetable_table_rows)
+        module_rows = self.get_modules(
+            period, clazz, get_module_rows=True,
+            timetable_table_rows=timetable_table_rows)
 
         # Create a list of exercises to be returned
         exercises = list()
@@ -401,40 +401,48 @@ class CATe(object):
                             continue
 
                     # Find out unassessed/assessed status
-                    exercise_assessed_status = 'UNKNOWN'
+                    exercise_assessed_status = AssessedStatus.UNKNOWN
                     if 'bgcolor' in td.attrs:
                         td_bgcolor = td['bgcolor']
                         if td_bgcolor == 'white':
                             # Unassessed
-                            exercise_assessed_status = 'UA'
+                            exercise_assessed_status = \
+                                AssessedStatus.UNASSESSED
                         elif td_bgcolor == '#cdcdcd':
                             # Unassessed - submission required
-                            exercise_assessed_status = 'UA-SR'
+                            exercise_assessed_status = \
+                                AssessedStatus.UNASSESSED_SUBMISSION_REQUIRED
                         elif td_bgcolor == '#ccffcc':
                             # Assessed - individual
-                            exercise_assessed_status = 'A-I'
+                            exercise_assessed_status = \
+                                AssessedStatus.ASSESSED_INDIVIDUAL
                         elif td_bgcolor == '#f0ccf0':
                             # Assessed - group
-                            exercise_assessed_status = 'A-G'
+                            exercise_assessed_status = \
+                                AssessedStatus.ASSESSED_GROUP
 
                     # Find out submission status
-                    exercise_submission_status = 'UNKNOWN'
+                    exercise_submission_status = SubmissionStatus.UNKNOWN
                     if 'style' in td.attrs:
                         td_style = td['style']
                         if td_style == 'border: 2px solid red':
                             # Not submitted
-                            exercise_submission_status = 'N-S'
+                            exercise_submission_status = \
+                                SubmissionStatus.NOT_SUBMITTED
                         elif td_style == 'border: 5px solid red':
                             # Not submitted - due soon
-                            exercise_submission_status = 'N-S-DS'
+                            exercise_submission_status = \
+                                SubmissionStatus.NOT_SUBMITTED_DUE_SOON
                         elif td_style == 'border: 2px solid yellow':
                             # Incomplete submission
-                            exercise_submission_status = 'I'
+                            exercise_submission_status = \
+                                SubmissionStatus.INCOMPLETE_SUBMISSION
                         elif td_style == 'border: 5px solid yellow':
                             # Incomplete submission - due soon
-                            exercise_submission_status = 'I-DS'
+                            exercise_submission_status = \
+                                SubmissionStatus.INCOMPLETE_SUBMISSION_DUE_SOON
                     else:
-                        exercise_submission_status = 'OK'
+                        exercise_submission_status = SubmissionStatus.OK
 
                     exercise = Exercise(
                         module_info['number'],
