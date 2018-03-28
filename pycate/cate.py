@@ -86,7 +86,8 @@ class CATe(object):
         Gets user information (name, login, CID, status, department,
         category, email, and personal tutor) from the CATe homepage
 
-        :return: A UserInfo object
+        :return: A UserInfo object representing the currently authenticated
+        user
         """
         self.logger.debug('Getting user info for {}...'.format(self._username))
 
@@ -95,8 +96,8 @@ class CATe(object):
         response = self.__get(url)
         soup = BeautifulSoup(response.text, 'html5lib')
 
-        user_info_table = soup.form.table.tbody.tr.find_all('td')[
-            1].table.tbody
+        user_info_table = \
+            soup.form.table.tbody.tr.find_all('td')[1].table.tbody
         uit_rows = user_info_table.find_all('tr')
 
         return UserInfo(
