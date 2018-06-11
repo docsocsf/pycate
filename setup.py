@@ -20,10 +20,10 @@ setup(
 
     description='An API wrapper for CATe',
     long_description=README,
-    url='https://github.com/ftm-1/py-cate',
+    url='https://github.com/docsocsf/py-cate',
 
-    author='ftm',
-    author_email='ftm-1-gh@outlook.com',
+    author='Fraser May',
+    author_email='frasertmay@gmail.com',
 
     license='MIT',
 
