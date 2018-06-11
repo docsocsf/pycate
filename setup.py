@@ -35,7 +35,7 @@ setup(
         'Natural Language :: English',
         'Operating System :: OS Independent'
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Utilities'
     ],
     keywords='cate api imperial college',
@@ -44,5 +44,5 @@ setup(
 
     install_requires=['requests', 'beautifulsoup4', 'html5lib'],
     tests_require=['pytest'],
-    python_requires='~=3.5'
+    python_requires='~=3.6'
 )
