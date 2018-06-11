@@ -11,27 +11,30 @@ class URLs:
 
     @classmethod
     def personal(cls, year, username):
-        return URLs._makeurl('personal.cgi?keyp={year}:{uname}'
-                             .format(year=year, uname=username))
+        return URLs._makeurl(
+            "personal.cgi?keyp={year}:{uname}".format(year=year, uname=username)
+        )
 
     @classmethod
     def timetable(cls, year, period, clazz, username):
-        return URLs._makeurl('timetable.cgi?keyt={year}:{period}:{cls}:{uname}'
-                             .format(year=year, period=period, cls=clazz,
-                                     uname=username))
+        return URLs._makeurl(
+            "timetable.cgi?keyt={year}:{period}:{cls}:{uname}".format(
+                year=year, period=period, cls=clazz, uname=username
+            )
+        )
 
     @classmethod
     def module_notes(cls, key):
-        return URLs._makeurl('notes.cgi?key={}'.format(key))
+        return URLs._makeurl("notes.cgi?key={}".format(key))
 
     @classmethod
     def show_file(cls, key):
-        return URLs._makeurl('showfile.cgi?key={}'.format(key))
+        return URLs._makeurl("showfile.cgi?key={}".format(key))
 
     @classmethod
     def handin(cls, key):
-        return URLs._makeurl('handins.cgi?key={}'.format(key))
+        return URLs._makeurl("handins.cgi?key={}".format(key))
 
     @classmethod
     def givens(cls, key):
-        return URLs._makeurl('given.cgi?key={}'.format(key))
+        return URLs._makeurl("given.cgi?key={}".format(key))

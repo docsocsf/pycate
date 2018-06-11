@@ -13,6 +13,6 @@ class Http:
         if username is None or password is None:
             raise ClientException("Username or password is None")
 
-        return requests.get(url, headers={
-            'User-Agent': self.user_agent
-        }, auth=(username, password))
+        return requests.get(
+            url, headers={"User-Agent": self.user_agent}, auth=(username, password)
+        )

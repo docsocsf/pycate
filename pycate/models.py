@@ -3,31 +3,39 @@ from typing import Dict
 
 
 class AssessedStatus(Enum):
-    UNKNOWN = 'UNKNOWN'
+    UNKNOWN = "UNKNOWN"
 
-    UNASSESSED = 'UA'
-    UNASSESSED_SUBMISSION_REQUIRED = 'UA-SR'
+    UNASSESSED = "UA"
+    UNASSESSED_SUBMISSION_REQUIRED = "UA-SR"
 
-    ASSESSED_INDIVIDUAL = 'A-I'
-    ASSESSED_GROUP = 'A-G'
+    ASSESSED_INDIVIDUAL = "A-I"
+    ASSESSED_GROUP = "A-G"
 
 
 class SubmissionStatus(Enum):
-    UNKNOWN = 'UNKNOWN'
+    UNKNOWN = "UNKNOWN"
 
-    OK = 'OK'
+    OK = "OK"
 
-    NOT_SUBMITTED = 'N-S'
-    NOT_SUBMITTED_DUE_SOON = 'N-S-DS'
+    NOT_SUBMITTED = "N-S"
+    NOT_SUBMITTED_DUE_SOON = "N-S-DS"
 
-    INCOMPLETE_SUBMISSION = 'I-S'
-    INCOMPLETE_SUBMISSION_DUE_SOON = 'I-S-DS'
+    INCOMPLETE_SUBMISSION = "I-S"
+    INCOMPLETE_SUBMISSION_DUE_SOON = "I-S-DS"
 
 
 class UserInfo:
     def __init__(
-            self, name: str, login: str, cid: str, status: str,
-            department: str, category: str, email: str, personal_tutor: str):
+        self,
+        name: str,
+        login: str,
+        cid: str,
+        status: str,
+        department: str,
+        category: str,
+        email: str,
+        personal_tutor: str,
+    ):
         self.__name = name
         self.__login = login
         self.__cid = cid
@@ -38,9 +46,7 @@ class UserInfo:
         self.__personal_tutor = personal_tutor
 
     def __str__(self):
-        return 'UserInfo{{{}}}'.format(
-            self.__login
-        )
+        return "UserInfo{{{}}}".format(self.__login)
 
     @property
     def name(self) -> str:
@@ -77,10 +83,18 @@ class UserInfo:
 
 class Exercise:
     def __init__(
-            self, module_number: str, module_name: str, code: str, name: str,
-            start: str, end: str, assessed_status: AssessedStatus,
-            submission_status: SubmissionStatus, links: Dict[str, str],
-            spec_key: str):
+        self,
+        module_number: str,
+        module_name: str,
+        code: str,
+        name: str,
+        start: str,
+        end: str,
+        assessed_status: AssessedStatus,
+        submission_status: SubmissionStatus,
+        links: Dict[str, str],
+        spec_key: str,
+    ):
         self.__module_number = module_number
         self.__module_name = module_name
         self.__code = code
@@ -93,11 +107,8 @@ class Exercise:
         self.__spec_key = spec_key
 
     def __str__(self):
-        return 'Exercise{{Module={} {};Code={};Name={}}}'.format(
-            self.module_number,
-            self.module_name,
-            self.code,
-            self.name
+        return "Exercise{{Module={} {};Code={};Name={}}}".format(
+            self.module_number, self.module_name, self.code, self.name
         )
 
     @property

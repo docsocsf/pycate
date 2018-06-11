@@ -8,4 +8,4 @@ from pycate.const import __version__
 
 import logging
 
-logging.getLogger('pycate').addHandler(logging.NullHandler())
+logging.getLogger("pycate").addHandler(logging.NullHandler())

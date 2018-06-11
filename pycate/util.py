@@ -24,33 +24,33 @@ def month_search(s):
     s = s.lower()
     s0 = s.lower()[0]  # save calculating it all the time
     s1 = s.lower()[1]
-    if s0 == 'j':
-        if s1 == 'a':
+    if s0 == "j":
+        if s1 == "a":
             return 1
-        elif s1 == 'u':
-            if s[2] == 'n':
+        elif s1 == "u":
+            if s[2] == "n":
                 return 6
-            elif s[2] == 'l':
+            elif s[2] == "l":
                 return 7
-    elif s0 == 'f':
+    elif s0 == "f":
         return 2
-    elif s0 == 'm':
-        if s1 == 'a':
-            if s[2] == 'r':
+    elif s0 == "m":
+        if s1 == "a":
+            if s[2] == "r":
                 return 3
-            elif s[2] == 'y':
+            elif s[2] == "y":
                 return 5
-    elif s0 == 'a':
-        if s1 == 'p':
+    elif s0 == "a":
+        if s1 == "p":
             return 4
-        elif s1 == 'u':
+        elif s1 == "u":
             return 8
-    elif s0 == 's':
+    elif s0 == "s":
         return 9
-    elif s0 == 'o':
+    elif s0 == "o":
         return 10
-    elif s0 == 'n':
+    elif s0 == "n":
         return 11
-    elif s0 == 'd':
+    elif s0 == "d":
         return 12
     return -1
