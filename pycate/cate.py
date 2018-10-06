@@ -270,16 +270,22 @@ class CATe(object):
 
                 # Find month at first labelled day
                 first_labelled_datetime = None
-                k = first_labelled_day
+                k = i
+                offset = 0
                 for month in month_colspans:
                     k -= month["colspan"]
 
                     # If the current month hasn't been found yet keep
                     # going
-                    if k > 0:
+                    if k >= 0:
                         continue
 
-                    first_labelled_month = month_search(month["name"])
+                    first_labelled_month = month_search(month["name"]) - offset
+
+                    # Keep on going until we find a legible month name
+                    if first_labelled_month < 0:
+                        offset += 1
+                        continue
 
                     # Use 1st September as the cut off between academic
                     # years
