@@ -197,14 +197,24 @@ class CATe(object):
         self.logger.debug("Finding modules...")
         module_rows = list()
 
+        sub_level = 0
         for i, row in enumerate(timetable_table_rows[7:]):
             row_tds = row.find_all("td")
+
             if len(row_tds) >= 2:
-                # Check if row contains a module by looking for the
-                # blue border around the module name cell
                 if (
                     "style" in row_tds[1].attrs
-                    and row_tds[1]["style"] == "border: 2px solid blue"
+                    and row_tds[1]["style"] == "border: 2px solid red"
+                ):
+                    if "level 3" in row_tds[1].text:
+                        sub_level = 2
+                    if "level 2" in row_tds[1].text:
+                        sub_level = 0
+                if (
+                    row_tds[1].b
+                    and row_tds[1].b.font
+                    and "color" in row_tds[1].b.font.attrs
+                    and row_tds[1].b.font.attrs["color"] == "blue"
                 ):
                     module_td = row_tds[1]
 
@@ -221,6 +231,15 @@ class CATe(object):
                     if get_module_rows:
                         module_info["start_row"] = 7 + i
                         module_info["rowspan"] = int(row_tds[1]["rowspan"])
+
+                    # Find subscription level
+                    if (
+                        "style" in row_tds[1].attrs
+                        and row_tds[1]["style"] == "border: 2px solid blue"
+                    ):
+                        module_info["sub_level"] = 3
+                    else:
+                        module_info["sub_level"] = sub_level
 
                     module_rows.append(module_info)
 
@@ -339,6 +358,7 @@ class CATe(object):
             module_info = {
                 "number": module["name"].split(" ")[0],
                 "name": " ".join(module["name"].split(" ")[2:]),
+                "sub_level": module["sub_level"],
             }
 
             for row_index, row in enumerate(timetable_table_rows[start_row:end_row]):
@@ -462,6 +482,7 @@ class CATe(object):
                     exercise = Exercise(
                         module_info["number"],
                         module_info["name"],
+                        module_info["sub_level"],
                         exercise_code,
                         exercise_name,
                         exercise_start.strftime("%Y-%m-%d"),

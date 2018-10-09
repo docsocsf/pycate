@@ -2,6 +2,14 @@ from enum import Enum
 from typing import Dict
 
 
+class SubscriptionLevel(Enum):
+    UNKNOWN = "UNKNOWN"
+
+    DISCARD = "0"
+    CATE_SUBMISSIONS = "2"
+    EXAM_REGISTRATION = "3"
+
+
 class AssessedStatus(Enum):
     UNKNOWN = "UNKNOWN"
 
@@ -86,6 +94,7 @@ class Exercise:
         self,
         module_number: str,
         module_name: str,
+        module_subscription_level: SubscriptionLevel,
         code: str,
         name: str,
         start: str,
@@ -97,6 +106,7 @@ class Exercise:
     ):
         self.__module_number = module_number
         self.__module_name = module_name
+        self.__module_subscription_level = module_subscription_level
         self.__code = code
         self.__name = name
         self.__start = start
@@ -118,6 +128,10 @@ class Exercise:
     @property
     def module_name(self) -> str:
         return self.__module_name
+
+    @property
+    def module_subscription_level(self) -> SubscriptionLevel:
+        return self.__module_subscription_level
 
     @property
     def code(self) -> str:
